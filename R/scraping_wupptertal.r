@@ -36,20 +36,31 @@ rmdr <- driver[["client"]]
 #////////////////////////////////////////////////////////////
  
 rmdr$navigate("https://www.studilöwe.uni-wuppertal.de/qisserver/pages/cm/exa/coursemanagement/basicCourseData.xhtml?_flowId=searchCourseNonStaff-flow&_flowExecutionKey=e1s1")
+
+# Finde Dropdownmenü für Sem-Auswahl
+sem_dropdown <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_label"]')
+sem_dropdown$clickElement()
+
+# Wähle "Wintersemester 2023"
+sem <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_2"]')
+sem$clickElement()
  
 # Finde das Feld "Suchbegriffe" über xpath
-erweit_such <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_0_1ad08e26bde39c9e4f1833e56dcce9b5:id1ad08e26bde39c9e4f1833e56dcce9b5"]')
+Suchbegriffe <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_0_1ad08e26bde39c9e4f1833e56dcce9b5:id1ad08e26bde39c9e4f1833e56dcce9b5"]')
 
 # Klicke in das Feld Suchbegriffe
-erweit_such$clickElement()
+Suchbegriffe$clickElement()
 
 # Drücke Enter im Feld Suchbegriffe, damit alle Vorlesungen angezeigt werden
-erweit_such$sendKeysToElement(list(key = "enter"))
+Suchbegriffe$sendKeysToElement(list(key = "enter"))
 
 
+#///////////////////////
+# Die Vorlesungen werden angezeigt. Immer zehn Stück pro Seite bei insgesamt
+# ca. 200-300 Seiten. Es muss nun jede Seite angeclickt werden und der Sourcecode geladen werden:
+#///////////////////////
 
-
-
+//*[@id="genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Table:0:row"]/td[3]
 
 
 
@@ -66,17 +77,6 @@ erweit_such$sendKeysToElement(list(key = "enter"))
 
 
  
-# Finde Dropdownmenü für Sem-Auswahl
-dropdown <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_label"]')
-dropdown$clickElement()
-# Wähle "Wintersemester 2023"
-option <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_2"]')
-option$clickElement()
- 
-# Löse Suche aus
-suchen <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:buttonsBottom:search"]/span')
-suchen$clickElement()
-# Lese den HTML-Code ein
 # page_source <- rmdr$getPageSource() |> unlist()
  
 elements <- rmdr$findElements(using = 'css selector', value = '.linkTable span')
