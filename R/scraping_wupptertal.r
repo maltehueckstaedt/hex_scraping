@@ -26,7 +26,7 @@ pacman::p_load(tidyverse, rvest, RSelenium)
 #////////////////////////////////////////////////////////////
  
 # Starten einer Remote-Sitzung mit Chrome
-driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 4231L)
+driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1231L)
  
 # Zugriff auf die gestartete Sitzung
 rmdr <- driver[["client"]]
@@ -80,7 +80,7 @@ for (i in 0:9) {
     page_sources[[i + 1]] <- page_source
     Sys.sleep(1) 
     # Auf "Zurück" klicken
-    back_button <- rmdr$findElement(using = "xpath", '//*[@id="form:dialogHeader:backButtonTop"]')
+    back_button <- rmdr$findElement(using = "css selector", '#form\\:dialogHeader\\:backButtonTop')
     back_button$clickElement()
     Sys.sleep(1)  # Warten, um sicherzustellen, dass die Seite vollständig geladen ist
   } else {
@@ -90,6 +90,8 @@ for (i in 0:9) {
 # Überprüfen der gesammelten HTML-Daten
 str(page_sources)
 
+
+#form\:dialogHeader\:backButtonTop
 
 
 
