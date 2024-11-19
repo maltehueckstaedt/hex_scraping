@@ -61,49 +61,57 @@ Suchbegriffe$sendKeysToElement(list(key = "enter"))
 # bei insgesamt ca. 200-300 Seiten. Es muss nun jede Seite
 # angeklickt werden und der Sourcecode geladen werden:
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::s
+# Gesamte Anzahl der Elemente
+total_elements <- 2611
 
+# Anzahl der Elemente pro Seite
+elements_per_page <- 10
+
+# Liste zur Speicherung der Seitenquellen
 page_sources <- list()
 
-# Schleife durch die 10 Elemente (Index von 0 bis 9)
-for (i in 0:9) {
-  #browser()
-  # XPath für das aktuelle Element dynamisch erstellen
-  xpath_kurs <- sprintf('//*[@id="genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Table:%d:actionsLeft:show:link"]', i)
-  
-  # Versuch, das Element zu finden
-  if (rmdr$findElements(using = "xpath", xpath_kurs) %>% length > 0) {
-    Kurs <- rmdr$findElement(using = "xpath", xpath_kurs)
-    Kurs$clickElement()
+# Äußerer Loop für Seiten
+for (page in 0:(ceiling(total_elements / elements_per_page) - 1)) {
+  # Innerer Loop für die Elemente auf der aktuellen Seite
+  start_index <- page * elements_per_page
+  print(start_index)
+  end_index <- min(total_elements - 1, start_index + elements_per_page - 1) # Begrenzung auf die letzten Elemente
+  print(end_index)
+  for (i in start_index:end_index) {
     
-    # HTML der Seite auslesen und speichern
-    page_source <- rmdr$getPageSource()[[1]]
-    page_sources[[i + 1]] <- page_source
-    Sys.sleep(1) 
-    # Auf "Zurück" klicken
-    back_button <- rmdr$findElement(using = "css selector", '#form\\:dialogHeader\\:backButtonTop')
-    back_button$clickElement()
-    Sys.sleep(1)  # Warten, um sicherzustellen, dass die Seite vollständig geladen ist
-  } else {
-    message(sprintf("Element mit Index %d wurde nicht gefunden", i))
+    xpath_kurs <- sprintf('//*[@id="genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Table:%d:actionsLeft:show:link"]', i)
+    
+    # Versuche, das Element zu finden
+    if (rmdr$findElements(using = "xpath", xpath_kurs) %>% length > 0) {
+      Kurs <- rmdr$findElement(using = "xpath", xpath_kurs)
+      Kurs$clickElement()
+      
+      # HTML der Seite auslesen und speichern
+      page_source <- rmdr$getPageSource()[[1]]
+      page_sources[[i + 1]] <- page_source
+      Sys.sleep(1)
+      
+      # Versuche, den "Zurück"-Button zu klicken
+      click_back_button(rmdr)
+      Sys.sleep(1)  # Warten, um sicherzustellen, dass die Seite vollständig geladen ist
+    } else {
+      message(sprintf("Element mit Index %d wurde nicht gefunden", i))
+    }
+  }
+  
+  # "Weiter"-Button klicken, außer bei der letzten Seite
+  if (page < ceiling(total_elements / elements_per_page) - 1) {
+    next_button <- rmdr$findElement(using = "css selector", "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Navi2next")
+    next_button$clickElement()
+    Sys.sleep(2)  # Warten, bis die nächste Seite vollständig geladen ist
   }
 }
-# Überprüfen der gesammelten HTML-Daten
-str(page_sources)
 
-
-#form\:dialogHeader\:backButtonTop
-
-
-
-
-
-
-
+message("Scraping abgeschlossen!")
 
 
 
  
   
 driver$server$stop()
-rmdr$close()  # Schließt das aktuelle Browserfenster
-rmdr$quit()   # Beendet den Selenium-Server und gibt den Port frei
+ 
