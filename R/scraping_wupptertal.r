@@ -51,20 +51,49 @@ Suchbegriffe <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:se
 # Klicke in das Feld Suchbegriffe
 Suchbegriffe$clickElement()
 
-# Drücke Enter im Feld Suchbegriffe, damit alle Vorlesungen angezeigt werden
+# Drücke ohne weitere Eingabe >Enter< im Feld Suchbegriffe, damit alle Vorlesungen angezeigt werden
 Suchbegriffe$sendKeysToElement(list(key = "enter"))
 
 
-#///////////////////////
-# Die Vorlesungen werden angezeigt. Immer zehn Stück pro Seite bei insgesamt
-# ca. 200-300 Seiten. Es muss nun jede Seite angeclickt werden und der Sourcecode geladen werden:
-#///////////////////////
+#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Comment: 
+# Die Vorlesungen werden angezeigt. Immer zehn Stück pro Seite
+# bei insgesamt ca. 200-300 Seiten. Es muss nun jede Seite
+# angeklickt werden und der Sourcecode geladen werden:
+#.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::s
 
-//*[@id="genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Table:0:row"]/td[3]
+# Kurs <- rmdr$findElement(using = "xpath", '//*[@id="genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Table:0:row"]/td[3]')
+# Kurs$clickElement()
+
+# # Gesamte HTML der Seite auslesen
+# page_source <- rmdr$getPageSource()[[1]]
 
 
 
 
+# Vektor, um die HTML-Inhalte zu speichern
+page_sources <- list()
+
+# Schleife durch die 10 Elemente (Index von 0 bis 9)
+for (i in 0:9) {
+  # XPath für das aktuelle Element dynamisch erstellen
+  xpath_kurs <- sprintf('//*[@id="genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Table:%d:tableRowAction"]', i)
+
+  # Element finden und anklicken
+  Kurs <- rmdr$findElement(using = "xpath", xpath_kurs)
+  Kurs$clickElement()
+  
+  # HTML der Seite auslesen und speichern
+  page_source <- rmdr$getPageSource()[[1]]
+  page_sources[[i + 1]] <- page_source
+  
+  # Auf "Zurück" klicken
+  back_button <- rmdr$findElement(using = "xpath", '//*[@id="form:dialogHeader:backButtonTop"]')
+  back_button$clickElement()
+  Sys.sleep(.5)  # 2 Sekunden warten (kann angepasst werden)
+}
+# Überprüfen der gesammelten HTML-Daten
+str(page_sources)
 
 
 
