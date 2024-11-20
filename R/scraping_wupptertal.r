@@ -54,7 +54,6 @@ Suchbegriffe$clickElement()
 # Drücke ohne weitere Eingabe >Enter< im Feld Suchbegriffe, damit alle Vorlesungen angezeigt werden
 Suchbegriffe$sendKeysToElement(list(key = "enter"))
 
-
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comment: 
 # Die Vorlesungen werden angezeigt. Immer zehn Stück pro Seite
@@ -62,54 +61,76 @@ Suchbegriffe$sendKeysToElement(list(key = "enter"))
 # angeklickt werden und der Sourcecode geladen werden:
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Finde den ersten Kurs über CSS
-kurs <- rmdr$findElement(using = "css selector", '#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:0\\:tableRowAction')
-kurs$clickElement()
+# Initialisiere ein leeres tibble
+ergebnisse <- tibble(
+  Titel = character(),
+  Nummer = character(),
+  Organisationseinheit = character(),
+  Veranstaltungsart = character(),
+  Angebotshaeufigkeit = character(),
+  Boxtitel = character(),
+  Boxinhalt = character()
+)
 
-
-# finde titel
-titel <- rmdr$findElement(using = "css selector", '#\\31 8a8022569d6ced829f833aa855530ce')
-# ziehe titel
-titel <- titel$getElementText()
-
-
-# finde nummer
-nummer <- rmdr$findElement(using = "css selector", '#a6b7089fcf43a67764ca850c1e4661d5')
-# ziehe nummer
-nummer <- nummer$getElementText()
-
- 
-# finde Organisationseinheit
-Organisationseinheit <- rmdr$findElement(using = "css selector", 'ul.listStyleIconSimple:nth-child(1) > li:nth-child(1)')
-# ziehe Organisationseinheit
-Organisationseinheit <- Organisationseinheit$getElementText()
-
-
-# finde Veranstaltungsart
-Veranstaltungsart <- rmdr$findElement(using = "css selector", '#\\34 fc695e29c07ca4ad6b71c515398e8e8')
-# ziehe Organisationseinheit
-Veranstaltungsart <- Veranstaltungsart$getElementText()
-
-
- # finde Angebotshaeufigkeit
-Angebotshaeufigkeit <- rmdr$findElement(using = "css selector", '#\\37 fad543acae49a98047a57220463ecdd')
-# ziehe Organisationseinheit
-Angebotshaeufigkeit <- Angebotshaeufigkeit$getElementText()
- 
-# Finde "Inhalte"-Tab und klicke darauf
-kurs <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
-kurs$clickElement()
-
-# finde Boxtitel
-Boxtitel <- rmdr$findElement(using = "css selector", 'div.box_title:nth-child(2)')
-# ziehe Organisationseinheit
-Boxtitel <- Boxtitel$getElementText()
-
-# finde Boxinhalt
-Boxinhalt <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:j_id_6m_13_2_0_1\\:collapsiblePanel > div:nth-child(3)')
-# ziehe Organisationseinheit
-Boxinhalt <- Boxinhalt$getElementText()
-
-
-driver$server$stop()
- 
+for (i in css_selectors) {
+  rmdr$maxWindowSize()
+  
+  # Finde die Kurse auf der Überblicksseite
+  kurs <- tryCatch({
+    elem <- rmdr$findElement(using = "css selector", i)
+    elem$clickElement()
+    elem
+  }, error = function(e) {
+    message("Kurs nicht gefunden: ", i)
+    next
+  })
+  
+  # Funktion zum sicheren Extrahieren von Text
+  safe_get_text <- function(selector) {
+    tryCatch({
+      elem <- rmdr$findElement(using = "css selector", selector)
+      elem$getElementText()[[1]]
+    }, error = function(e) {
+      NA
+    })
+  }
+  
+  ################################################################
+  # 1. Tab: Semesterplanung
+  ################################################################
+  # Extrahiere die gewünschten Informationen
+  titel <- safe_get_text('#\\31 8a8022569d6ced829f833aa855530ce')
+  nummer <- safe_get_text('#a6b7089fcf43a67764ca850c1e4661d5')
+  organisationseinheit <- safe_get_text('ul.listStyleIconSimple:nth-child(1) > li:nth-child(1)')
+  veranstaltungsart <- safe_get_text('#\\34 fc695e29c07ca4ad6b71c515398e8e8')
+  angebotshaeufigkeit <- safe_get_text('#\\37 fad543acae49a98047a57220463ecdd')
+  
+  # Klicke auf den "Inhalte"-Tab
+  tryCatch({
+    inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
+    inhalte_tab$clickElement()
+  }, error = function(e) {
+    message("Inhalte-Tab nicht gefunden.")
+  })
+  
+  boxtitel <- safe_get_text('div.box_title:nth-child(2)')
+  boxinhalt <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:j_id_6m_13_2_0_1\\:collapsiblePanel > div:nth-child(3)')
+  
+  # Erstelle ein tibble mit den extrahierten Daten
+  neue_zeile <- tibble(
+    Titel = titel,
+    Nummer = nummer,
+    Organisationseinheit = organisationseinheit,
+    Veranstaltungsart = veranstaltungsart,
+    Angebotshaeufigkeit = angebotshaeufigkeit,
+    Boxtitel = boxtitel,
+    Boxinhalt = boxinhalt
+  )
+  
+  # Füge die neue Zeile zum bestehenden tibble hinzu
+  ergebnisse <<- bind_rows(ergebnisse, neue_zeile)
+  
+  # Gehe zurück zur Basisseite
+  rmdr$goBack()
+  rmdr$goBack()
+}
