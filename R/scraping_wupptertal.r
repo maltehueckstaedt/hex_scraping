@@ -26,7 +26,7 @@ pacman::p_load(tidyverse, rvest, RSelenium)
 #////////////////////////////////////////////////////////////
  
 # Starten einer Remote-Sitzung mit Chrome
-driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1231L)
+driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
  
 # Zugriff auf die gestartete Sitzung
 rmdr <- driver[["client"]]
@@ -60,6 +60,10 @@ Suchbegriffe$sendKeysToElement(list(key = "enter"))
 # bei insgesamt ca. 200-300 Seiten. Es muss nun jede Seite
 # angeklickt werden und der Sourcecode geladen werden:
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+css_selectors <- sprintf(
+  "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
+  0:9
+)
 
 # Initialisiere ein leeres tibble
 ergebnisse <- tibble(
@@ -74,7 +78,7 @@ ergebnisse <- tibble(
 
 for (i in css_selectors) {
   rmdr$maxWindowSize()
-  
+  #browser()
   # Finde die Kurse auf der Überblicksseite
   kurs <- tryCatch({
     elem <- rmdr$findElement(using = "css selector", i)
@@ -88,13 +92,16 @@ for (i in css_selectors) {
   # Funktion zum sicheren Extrahieren von Text
   safe_get_text <- function(selector) {
     tryCatch({
+      if (length(rmdr$findElements(using = "css selector", selector)) == 0) {
+        return(NA) # Gibt NA zurück, wenn kein Element gefunden wird
+      }
       elem <- rmdr$findElement(using = "css selector", selector)
       elem$getElementText()[[1]]
     }, error = function(e) {
-      NA
+      NA # Gibt NA zurück bei allen anderen Fehlern
     })
   }
-  
+
   ################################################################
   # 1. Tab: Semesterplanung
   ################################################################
