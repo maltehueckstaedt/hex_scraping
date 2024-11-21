@@ -7,7 +7,7 @@
 #////////////////////////////////////////////////////////////
  
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, rvest, RSelenium)
+pacman::p_load(tidyverse, rvest, RSelenium,rlang)
  
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
@@ -63,6 +63,8 @@ css_selectors <- sprintf(
 )
 
 # Initialisiere ein leeres tibble
+
+# Initialisiere ein leeres tibble
 ergebnisse <- tibble(
   Titel = character(),
   Nummer = character(),
@@ -108,8 +110,38 @@ for (i in css_selectors) {
   organisationseinheit <- safe_get_text('ul.listStyleIconSimple:nth-child(1) > li:nth-child(1)')
   veranstaltungsart <- safe_get_text('#\\34 fc695e29c07ca4ad6b71c515398e8e8')
   angebotshaeufigkeit <- safe_get_text('#\\37 fad543acae49a98047a57220463ecdd')
-  
-  # Klicke auf den "Inhalte"-Tab
+
+  feld_1_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > label:nth-child(1)')
+  print(feld_1_titel)
+  feld_1_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2)')
+  print(feld_1_wert)
+
+  feld_2_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > label:nth-child(1)')
+  print(feld_2_titel)
+  feld_2_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
+  print(feld_2_wert)
+ 
+  feld_3_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > label:nth-child(1)')
+  print(feld_3_titel)
+  feld_3_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(2)')
+  print(feld_3_wert)
+
+  feld_4_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > label:nth-child(1)')
+  print(feld_4_titel)
+  feld_4_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(2)')
+  print(feld_4_wert)
+
+
+
+
+
+
+
+
+
+
+
+
   tryCatch({
     inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
     inhalte_tab$clickElement()
@@ -127,9 +159,23 @@ for (i in css_selectors) {
     Organisationseinheit = organisationseinheit,
     Veranstaltungsart = veranstaltungsart,
     Angebotshaeufigkeit = angebotshaeufigkeit,
+
     Boxtitel = boxtitel,
     Boxinhalt = boxinhalt
+
   )
+
+  #Dynamische Spalte nur hinzufügen, wenn feld_1_titel nicht NA ist
+  # Liste der Felder (Titel und Werte)
+  felder_titel <- list(feld_1_titel, feld_2_titel, feld_3_titel, feld_4_titel)
+  felder_wert <- list(feld_1_wert, feld_2_wert, feld_3_wert, feld_4_wert)
+
+  # Dynamische Spalten nur hinzufügen, wenn Titel nicht NA sind
+  for (i in seq_along(felder_titel)) {
+    if (!is.na(felder_titel[[i]]) && felder_titel[[i]] != "") {
+      neue_zeile <- neue_zeile %>% mutate(!!felder_titel[[i]] := felder_wert[[i]])
+    }
+  }
   
   # Füge die neue Zeile zum bestehenden tibble hinzu
   ergebnisse <<- bind_rows(ergebnisse, neue_zeile)
@@ -138,3 +184,8 @@ for (i in css_selectors) {
   rmdr$goBack()
   rmdr$goBack()
 }
+
+
+
+rmdr$close() 
+system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
