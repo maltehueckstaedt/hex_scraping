@@ -89,17 +89,33 @@ for (i in css_selectors) {
   })
   
   # Funktion zum sicheren Extrahieren von Text
-  safe_get_text <- function(selector) {
-    tryCatch({
-      if (length(rmdr$findElements(using = "css selector", selector)) == 0) {
-        return(NA) # Gibt NA zurück, wenn kein Element gefunden wird
-      }
-      elem <- rmdr$findElement(using = "css selector", selector)
-      elem$getElementText()[[1]]
-    }, error = function(e) {
-      NA # Gibt NA zurück bei allen anderen Fehlern
-    })
-  }
+safe_get_text <- function(selector) {
+  tryCatch({
+    # Prüfe, ob das Element existiert
+    if (length(rmdr$findElements(using = "css selector", selector)) == 0) {
+      return(NA) # NA, wenn kein Element gefunden wird
+    }
+    
+    # Finde das Haupt-Element
+    parent_element <- rmdr$findElement(using = "css selector", selector)
+    
+    # Suche nach <li>-Kind-Elementen
+    list_items <- parent_element$findChildElements(using = "css selector", "li")
+    
+    if (length(list_items) > 0) {
+      # Extrahiere den Text von jedem <li>-Element
+      sapply(list_items, function(item) {
+        item$getElementText()[[1]]
+      })
+    } else {
+      # Extrahiere den Text des Haupt-Elements, wenn keine <li>-Elemente vorhanden sind
+      parent_element$getElementText()[[1]]
+    }
+  }, error = function(e) {
+    NA # Gibt NA bei Fehlern zurück
+  })
+}
+
 
   ################################################################
   # 1. Tab: Semesterplanung
@@ -131,17 +147,6 @@ for (i in css_selectors) {
   feld_4_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(2)')
   print(feld_4_wert)
 
-
-
-
-
-
-
-
-
-
-
-
   tryCatch({
     inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
     inhalte_tab$clickElement()
@@ -171,12 +176,14 @@ for (i in css_selectors) {
   felder_wert <- list(feld_1_wert, feld_2_wert, feld_3_wert, feld_4_wert)
 
   # Dynamische Spalten nur hinzufügen, wenn Titel nicht NA sind
+ # Dynamische Spalten nur hinzufügen, wenn Titel nicht NA sind
   for (i in seq_along(felder_titel)) {
     if (!is.na(felder_titel[[i]]) && felder_titel[[i]] != "") {
-      neue_zeile <- neue_zeile %>% mutate(!!felder_titel[[i]] := felder_wert[[i]])
+      # Stelle sicher, dass Werte als Liste eingefügt werden
+      neue_zeile <- neue_zeile %>% mutate(!!felder_titel[[i]] := list(felder_wert[[i]]))
     }
   }
-  
+    
   # Füge die neue Zeile zum bestehenden tibble hinzu
   ergebnisse <<- bind_rows(ergebnisse, neue_zeile)
   
