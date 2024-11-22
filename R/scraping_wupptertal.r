@@ -1,14 +1,16 @@
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
-# LOAD PACKAGES -------------------------------------------- 
+# LOAD PACKAGES/FUNCTIONS -------------------------------------------- 
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
  
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, rvest, RSelenium,rlang)
- 
+
+source("R/functions/get_element.r")
+
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
@@ -31,6 +33,11 @@ rmdr <- driver[["client"]]
 #////////////////////////////////////////////////////////////
 ## READ URLS -------------------------------------------------
 #////////////////////////////////////////////////////////////
+
+#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Comment: Gehe zur Basisseite und wähle gewünschtes Semester
+# aus.
+#.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
  
 rmdr$navigate("https://www.studilöwe.uni-wuppertal.de/qisserver/pages/cm/exa/coursemanagement/basicCourseData.xhtml?_flowId=searchCourseNonStaff-flow&_flowExecutionKey=e1s1")
 
@@ -52,17 +59,19 @@ Suchbegriffe$clickElement()
 Suchbegriffe$sendKeysToElement(list(key = "enter"))
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Comment: 
-# Die Vorlesungen werden angezeigt. Immer zehn Stück pro Seite
-# bei insgesamt ca. 200-300 Seiten. Es muss nun jede Seite
-# angeklickt werden und der Sourcecode geladen werden:
+# Comment: Die Vorlesungen werden angezeigt. Immer zehn Stück 
+# pro Seite bei insgesamt ca. 200-300 Seiten. Erzeuge 
+# Selektoren der Links zu den Kursen:
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
   0:9
 )
 
-# Initialisiere ein leeres tibble
+#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Comment: Erzeuge leeren Tibble zum befüllen:
+#.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 # Initialisiere ein leeres tibble
 ergebnisse <- tibble(
@@ -75,77 +84,65 @@ ergebnisse <- tibble(
   Boxinhalt = character()
 )
 
-for (i in css_selectors) {
+# Erzeuge Iteration-Zähler
+iteration <- 1
+
+#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Comment: Erzeuge leeren Tibble zum befüllen:
+#.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+for (i in css_selectors) { 
+
   rmdr$maxWindowSize()
-  #browser()
+
   # Finde die Kurse auf der Überblicksseite
   kurs <- tryCatch({
     elem <- rmdr$findElement(using = "css selector", i)
     elem$clickElement()
-    elem
+    cat("Kurs ", iteration, ": css selector gefunden: ", "\033[32m", i, "\033[0m", "\n")
   }, error = function(e) {
-    message("Kurs nicht gefunden: ", i)
+    message("\033[31m", "css zum Kurs nicht gefunden: ", i, "\033[0m")
     next
   })
-  
-  # Funktion zum sicheren Extrahieren von Text
-safe_get_text <- function(selector) {
-  tryCatch({
-    # Prüfe, ob das Element existiert
-    if (length(rmdr$findElements(using = "css selector", selector)) == 0) {
-      return(NA) # NA, wenn kein Element gefunden wird
-    }
-    
-    # Finde das Haupt-Element
-    parent_element <- rmdr$findElement(using = "css selector", selector)
-    
-    # Suche nach <li>-Kind-Elementen
-    list_items <- parent_element$findChildElements(using = "css selector", "li")
-    
-    if (length(list_items) > 0) {
-      # Extrahiere den Text von jedem <li>-Element
-      sapply(list_items, function(item) {
-        item$getElementText()[[1]]
-      })
-    } else {
-      # Extrahiere den Text des Haupt-Elements, wenn keine <li>-Elemente vorhanden sind
-      parent_element$getElementText()[[1]]
-    }
-  }, error = function(e) {
-    NA # Gibt NA bei Fehlern zurück
-  })
-}
 
+  iteration <- iteration +1
 
-  ################################################################
+  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   # 1. Tab: Semesterplanung
-  ################################################################
+  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
   # Extrahiere die gewünschten Informationen
-  titel <- safe_get_text('#\\31 8a8022569d6ced829f833aa855530ce')
-  nummer <- safe_get_text('#a6b7089fcf43a67764ca850c1e4661d5')
-  organisationseinheit <- safe_get_text('ul.listStyleIconSimple:nth-child(1) > li:nth-child(1)')
-  veranstaltungsart <- safe_get_text('#\\34 fc695e29c07ca4ad6b71c515398e8e8')
-  angebotshaeufigkeit <- safe_get_text('#\\37 fad543acae49a98047a57220463ecdd')
+  titel <- get_element('#\\31 8a8022569d6ced829f833aa855530ce')
+  check_obj_exist(titel)
 
-  feld_1_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > label:nth-child(1)')
-  print(feld_1_titel)
-  feld_1_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2)')
-  print(feld_1_wert)
+  nummer <- get_element('#a6b7089fcf43a67764ca850c1e4661d5')
+  check_obj_exist(nummer)
 
-  feld_2_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > label:nth-child(1)')
-  print(feld_2_titel)
-  feld_2_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
-  print(feld_2_wert)
+  organisationseinheit <- get_element('ul.listStyleIconSimple:nth-child(1) > li:nth-child(1)')
+  check_obj_exist(organisationseinheit)
+
+  veranstaltungsart <- get_element('#\\34 fc695e29c07ca4ad6b71c515398e8e8')
+  check_obj_exist(veranstaltungsart)
+
+  angebotshaeufigkeit <- get_element('#\\37 fad543acae49a98047a57220463ecdd')
+  check_obj_exist(angebotshaeufigkeit)
+
+  feld_1_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > label:nth-child(1)')
+  feld_1_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2)')
+  check_obj_exist_value(feld_1_titel)
+
+
+  feld_2_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > label:nth-child(1)')
+  feld_2_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
+  check_obj_exist_value(feld_2_titel)
  
-  feld_3_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > label:nth-child(1)')
-  print(feld_3_titel)
-  feld_3_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(2)')
-  print(feld_3_wert)
+  feld_3_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > label:nth-child(1)')
+  feld_3_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(2)')
+  check_obj_exist_value(feld_3_titel)
 
-  feld_4_titel <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > label:nth-child(1)')
-  print(feld_4_titel)
-  feld_4_wert <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(2)')
-  print(feld_4_wert)
+  feld_4_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > label:nth-child(1)')
+  feld_4_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(2)')
+  check_obj_exist_value(feld_4_titel)
 
   tryCatch({
     inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
@@ -154,8 +151,8 @@ safe_get_text <- function(selector) {
     message("Inhalte-Tab nicht gefunden.")
   })
   
-  boxtitel <- safe_get_text('div.box_title:nth-child(2)')
-  boxinhalt <- safe_get_text('#detailViewData\\:tabContainer\\:term-planning-container\\:j_id_6m_13_2_0_1\\:collapsiblePanel > div:nth-child(3)')
+  boxtitel <- get_element('div.box_title:nth-child(2)')
+  boxinhalt <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:j_id_6m_13_2_0_1\\:collapsiblePanel > div:nth-child(3)')
   
   # Erstelle ein tibble mit den extrahierten Daten
   neue_zeile <- tibble(
