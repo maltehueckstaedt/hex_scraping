@@ -9,7 +9,7 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, rvest, RSelenium,rlang)
 
-source("R/functions/get_element.r")
+source("R/functions/helper_functions.r")
 
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
