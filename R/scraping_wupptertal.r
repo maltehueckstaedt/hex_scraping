@@ -68,6 +68,7 @@ css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
   0:9
 )
+ 
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comment: Erzeuge leeren Tibble zum befüllen:
@@ -92,27 +93,32 @@ iteration <- 1
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 for (i in css_selectors) { 
-
-  rmdr$maxWindowSize()
+  
+  rmdr$maxWindowSize() # erzeuge maximale Fenstergröße damit alles Informationen gescrapet werden können.
 
   # Finde die Kurse auf der Überblicksseite
   kurs <- tryCatch({
     elem <- rmdr$findElement(using = "css selector", i)
     elem$clickElement()
-    cat("Kurs ", iteration, ": css selector gefunden: ", "\033[32m", i, "\033[0m", "\n")
   }, error = function(e) {
     message("\033[31m", "css zum Kurs nicht gefunden: ", i, "\033[0m")
     next
   })
-
+  
   iteration <- iteration +1
+
+  # Erzeuge Nachricht, welcher Kurs gescrapet wird:
+  titel <- get_element('#\\31 8a8022569d6ced829f833aa855530ce')
+  cat("\033[34m", paste0("Start das scraping von Kurs Nr.", iteration, ":"), "\033[0m",
+    "\033[32m", titel, "\033[0m\n")
+
+  
 
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   # 1. Tab: Semesterplanung
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
   # Extrahiere die gewünschten Informationen
-  titel <- get_element('#\\31 8a8022569d6ced829f833aa855530ce')
   check_obj_exist(titel)
 
   nummer <- get_element('#a6b7089fcf43a67764ca850c1e4661d5')
@@ -144,6 +150,10 @@ for (i in css_selectors) {
   feld_4_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(2)')
   check_obj_exist_value(feld_4_titel)
 
+  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+  # 2. Tab: Inhalte
+  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
   tryCatch({
     inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
     inhalte_tab$clickElement()
@@ -151,8 +161,77 @@ for (i in css_selectors) {
     message("Inhalte-Tab nicht gefunden.")
   })
   
-  boxtitel <- get_element('div.box_title:nth-child(2)')
-  boxinhalt <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:j_id_6m_13_2_0_1\\:collapsiblePanel > div:nth-child(3)')
+  # Erzeuge die Liste der XPaths für die spezifischen IDs
+  container_ids <- sprintf(
+    '//*[@id="detailViewData:tabContainer:term-planning-container:j_id_6m_13_2_%d_1"]',
+    0:20
+  )
+
+  # Zähle die Container, die tatsächlich auf der Seite existieren
+  found_containers <- 0
+
+  for (xpath in container_ids) {
+    elements <- rmdr$findElements(using = "xpath", xpath)
+    if (length(elements) > 0) {
+      found_containers <- found_containers + 1
+    }
+  }
+
+  # Anzahl der gefundenen Container ausgeben
+  cat("Anzahl der gefundenen Container:", found_containers, "\n")
+
+  
+  # Listen für die gesammelten Titel und Inhalte
+  container_titles <- list()
+  container_contents <- list()
+
+  if (found_containers > 0) {
+    for (i in 1:found_containers) {
+      # Dynamische Erstellung der XPathes für Titel und Inhalt
+      title_xpath <- sprintf(
+        '/html/body/div[1]/div[3]/div/div[1]/div/div/form[3]/div[2]/div/div/fieldset/div[4]/div/div[2]/fieldset/div[%d]/div/div/div/div[1]/div/div[2]/h2',
+        i + 3 # Start bei 4, daher Offset 3
+      )
+      content_xpath <- sprintf(
+        '/html/body/div[1]/div[3]/div/div[1]/div/div/form[3]/div[2]/div/div/fieldset/div[4]/div/div[2]/fieldset/div[%d]/div/div/div/div[2]',
+        i + 3
+      )
+
+      # Extrahiere den Titel
+      title_elements <- rmdr$findElements(using = "xpath", title_xpath)
+      if (length(title_elements) > 0) {
+        container_titles[[i]] <- title_elements[[1]]$getElementText()[[1]]
+      } else {
+        container_titles[[i]] <- NA
+      }
+
+      # Extrahiere den Inhalt
+      content_elements <- rmdr$findElements(using = "xpath", content_xpath)
+      if (length(content_elements) > 0) {
+        container_contents[[i]] <- content_elements[[1]]$getElementText()[[1]]
+      } else {
+        container_contents[[i]] <- NA
+      }
+    }
+  }
+
+
+
+  # Erstelle ein tibble aus den extrahierten Daten
+  if (found_containers > 0) {
+    # Überprüfen, ob die Listen für Titel und Inhalte gleich lang sind
+    if (length(container_titles) == length(container_contents)) {
+      # Erstelle ein tibble mit Titeln als Spaltennamen und den entsprechenden Inhalten
+      data_tibble <- tibble::tibble(
+        !!!setNames(container_contents, container_titles)
+      )
+    } else {
+      stop("Die Anzahl der Titel und Inhalte stimmt nicht überein.")
+    }
+  } else {
+    data_tibble <- tibble() # Leeres tibble, falls keine Container gefunden wurden
+  }
+ 
   
   # Erstelle ein tibble mit den extrahierten Daten
   neue_zeile <- tibble(
@@ -162,10 +241,8 @@ for (i in css_selectors) {
     Veranstaltungsart = veranstaltungsart,
     Angebotshaeufigkeit = angebotshaeufigkeit,
 
-    Boxtitel = boxtitel,
-    Boxinhalt = boxinhalt
-
   )
+
 
   #Dynamische Spalte nur hinzufügen, wenn feld_1_titel nicht NA ist
   # Liste der Felder (Titel und Werte)
@@ -180,9 +257,13 @@ for (i in css_selectors) {
       neue_zeile <- neue_zeile %>% mutate(!!felder_titel[[i]] := list(felder_wert[[i]]))
     }
   }
-    
+
+  if (found_containers > 0) {
+  neue_zeile <- bind_cols(neue_zeile,data_tibble)
+  }
+  print(neue_zeile)
   # Füge die neue Zeile zum bestehenden tibble hinzu
-  ergebnisse <<- bind_rows(ergebnisse, neue_zeile)
+  ergebnisse <- bind_rows(ergebnisse, neue_zeile)
   
   # Gehe zurück zur Basisseite
   rmdr$goBack()
