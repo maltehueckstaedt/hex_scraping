@@ -20,22 +20,23 @@ source("R/functions/helper_functions.r")
 #////////////////////////////////////////////////////////////
  
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Comment: 
+# Comment: Starte Browser
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
- 
-# Starten einer Remote-Sitzung mit Chrome
-driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
+# Starten einer Remote-Sitzung mit Chrome auf PC
+ driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
 
-# Starte auf Mac
-driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.86", port = 1234L)
+# Starten einer Remote-Sitzung mit Chrome auf MAC
+# driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.86", port = 1234L)
 
  
 # Zugriff auf die gestartete Sitzung
 rmdr <- driver[["client"]]
+rmdr$maxWindowSize() # erzeuge maximale Fenstergröße damit alles Informationen gescrapet werden können.
+
  
 #////////////////////////////////////////////////////////////
-## READ URLS ------------------------------------------------
+## SCRAPE DATA ----------------------------------------------
 #////////////////////////////////////////////////////////////
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -58,8 +59,8 @@ Suchbegriffe <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:se
 
 # Klicke in das Feld Suchbegriffe
 Suchbegriffe$clickElement()
-
-# Drücke ohne weitere Eingabe >Enter< im Feld Suchbegriffe, damit alle Vorlesungen angezeigt werden
+# Drücke ohne weitere Eingabe >Enter< im Feld Suchbegriffe, 
+# damit alle Vorlesungen angezeigt werden
 Suchbegriffe$sendKeysToElement(list(key = "enter"))
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -73,33 +74,22 @@ css_selectors <- sprintf(
   0:9
 )
  
-
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Comment: Erzeuge leeren Tibble zum befüllen:
+# Comment: Erzeuge Iteration-Zähler, für das Durchszählen der 
+# Kurse im Output (für Vereinfacherung möglichen Debuggings)
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Initialisiere ein leeres tibble
-ergebnisse <- tibble(
-  Titel = character(),
-  Nummer = character(),
-  Organisationseinheit = character(),
-  Veranstaltungsart = character(),
-  Angebotshaeufigkeit = character(),
-  Boxtitel = character(),
-  Boxinhalt = character()
-)
-
-# Erzeuge Iteration-Zähler
 iteration <- 1
 
+ergebnisse <- tibble(
+)
+
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Comment: Erzeuge leeren Tibble zum befüllen:
+# Comment: Betätigt Kurs-Selektor
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 for (i in css_selectors) { 
   
-  rmdr$maxWindowSize() # erzeuge maximale Fenstergröße damit alles Informationen gescrapet werden können.
-
   # Finde die Kurse auf der Überblicksseite
   kurs <- tryCatch({
     elem <- rmdr$findElement(using = "css selector", i)
@@ -109,50 +99,37 @@ for (i in css_selectors) {
     next
   })
   
-  iteration <- iteration +1
+  iteration <- iteration + 1
 
   # Erzeuge Nachricht, welcher Kurs gescrapet wird:
   titel <- get_element('#\\31 8a8022569d6ced829f833aa855530ce')
   cat("\033[34m", paste0("Start das scraping von Kurs Nr.", iteration, ":"), "\033[0m",
     "\033[32m", titel, "\033[0m\n")
 
+  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+  # 1. Tab: Parallelgruppen/Termine. Extrahiere die gewünschten 
+  # Informationen und bestätige Extraktion. Starte mit 
+  # >>Grunddaten<<
+  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   
-  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-  # 1. Tab: Semesterplanung
-  #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+  labels <- rmdr$findElements(using = "css selector", ".labelItemLine label")
+  label_texts <- sapply(labels, function(el) el$getElementText())
+  answers <- rmdr$findElements(using = "css selector", ".labelItemLine .answer")
+  answer_texts <- sapply(answers, function(el) el$getElementText())
 
-  # Extrahiere die gewünschten Informationen
-  check_obj_exist(titel)
+  data <- tibble(
+    Label = label_texts,
+    Answer = answer_texts
+  ) %>%
+    # Gruppiere nach Label, um mehrfach vorkommende Einträge zusammenzufassen
+    group_by(Label) %>%
+    summarise(Answer = list(unique(Answer)), .groups = "drop") %>%
+    # Ins breite Format überführen
+    pivot_wider(names_from = Label, values_from = Answer)
 
-  nummer <- get_element('#a6b7089fcf43a67764ca850c1e4661d5')
-  check_obj_exist(nummer)
+  check_obj_exist(data)
 
-  organisationseinheit <- get_element('ul.listStyleIconSimple:nth-child(1) > li:nth-child(1)')
-  check_obj_exist(organisationseinheit)
 
-  veranstaltungsart <- get_element('#\\34 fc695e29c07ca4ad6b71c515398e8e8')
-  check_obj_exist(veranstaltungsart)
-
-  angebotshaeufigkeit <- get_element('#\\37 fad543acae49a98047a57220463ecdd')
-  check_obj_exist(angebotshaeufigkeit)
-
-  for (i in 1:4) {
-    feld_titel <- get_element(sprintf(
-      "#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(%d) > label:nth-child(1)", 
-      i
-    ))
-    feld_wert <- get_element(sprintf(
-      "#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(%d) > div:nth-child(2)", 
-      i
-    ))
-
-    # Dynamisch Objekte erstellen
-    assign(paste0("feld_", i, "_titel"), feld_titel)
-    assign(paste0("feld_", i, "_wert"), feld_wert)
-    
-    # Prüfen
-    check_obj_exist_value(feld_titel)
-  } 
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   # 2. Tab: Inhalte
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -181,9 +158,8 @@ for (i in css_selectors) {
   }
 
   # Anzahl der gefundenen Container ausgeben
-  cat("Anzahl der gefundenen Container:", found_containers, "\n")
+  cat("Anzahl der gefundenen Container im Tab Inhalt:", found_containers, "\n")
 
-  
   # Listen für die gesammelten Titel und Inhalte
   container_titles <- list()
   container_contents <- list()
@@ -218,8 +194,6 @@ for (i in css_selectors) {
     }
   }
 
-
-
   # Erstelle ein tibble aus den extrahierten Daten
   if (found_containers > 0) {
     # Überprüfen, ob die Listen für Titel und Inhalte gleich lang sind
@@ -234,31 +208,11 @@ for (i in css_selectors) {
   } else {
     data_tibble <- tibble() # Leeres tibble, falls keine Container gefunden wurden
   }
- 
   
   # Erstelle ein tibble mit den extrahierten Daten
-  neue_zeile <- tibble(
-    Titel = titel,
-    Nummer = nummer,
-    Organisationseinheit = organisationseinheit,
-    Veranstaltungsart = veranstaltungsart,
-    Angebotshaeufigkeit = angebotshaeufigkeit,
-
-  )
+  neue_zeile <- data
 
 
-  #Dynamische Spalte nur hinzufügen, wenn feld_1_titel nicht NA ist
-  # Liste der Felder (Titel und Werte)
-  felder_titel <- list(feld_1_titel, feld_2_titel, feld_3_titel, feld_4_titel)
-  felder_wert <- list(feld_1_wert, feld_2_wert, feld_3_wert, feld_4_wert)
-
- # Dynamische Spalten nur hinzufügen, wenn Titel nicht NA sind
-  for (i in seq_along(felder_titel)) {
-    if (!is.na(felder_titel[[i]]) && felder_titel[[i]] != "") {
-      # Stelle sicher, dass Werte als Liste eingefügt werden
-      neue_zeile <- neue_zeile %>% mutate(!!felder_titel[[i]] := list(felder_wert[[i]]))
-    }
-  }
 
   if (found_containers > 0) {
   neue_zeile <- bind_cols(neue_zeile,data_tibble)
@@ -272,10 +226,7 @@ for (i in css_selectors) {
   rmdr$goBack()
 }
 
-
-
 rmdr$close() 
-#system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
+system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
 # Kill all java Mac:
-system("killall java", intern=FALSE, ignore.stdout=FALSE)
-
+# system("killall java", intern=FALSE, ignore.stdout=FALSE)

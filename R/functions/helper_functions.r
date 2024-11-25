@@ -27,20 +27,10 @@ tryCatch({
 }
 
 
-check_obj_exist <- function(scrape_obj) {
-  if (!is.null(scrape_obj) && length(scrape_obj) > 0) {
-    cat("\033[33m>>", deparse(substitute(scrape_obj)), "<<\033[0m", "erfolgreich erhoben\n")
-  } else {
-    cat("\033[31m", ">>", deparse(substitute(scrape_obj)), "<<", "nicht gefunden\n", "\033[0m")
+check_obj_exist <- function(df) {
+  # Iteriere über die Spaltennamen
+  for (col_name in names(df)) {
+    cat("\033[33m>>", col_name, "<<\033[0m", "erfolgreich erhoben\n")
   }
 }
-
-check_obj_exist_value <- function(scrape_obj) {
-  if (!is.na(scrape_obj)) {
-    if (!is.null(scrape_obj) && length(scrape_obj) > 0) {
-      cat("\033[33m>>", scrape_obj, "<<\033[0m", "erfolgreich erhoben\n")
-    } else {
-      cat("\033[31m", ">>", scrape_obj, "<<", "nicht gefunden\n", "\033[0m")
-    }
-  }
-}
+ 
