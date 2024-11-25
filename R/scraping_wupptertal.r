@@ -113,7 +113,6 @@ for (i in css_selectors) {
     "\033[32m", titel, "\033[0m\n")
 
   
-
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   # 1. Tab: Semesterplanung
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -133,23 +132,23 @@ for (i in css_selectors) {
   angebotshaeufigkeit <- get_element('#\\37 fad543acae49a98047a57220463ecdd')
   check_obj_exist(angebotshaeufigkeit)
 
-  feld_1_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > label:nth-child(1)')
-  feld_1_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2)')
-  check_obj_exist_value(feld_1_titel)
+  for (i in 1:4) {
+    feld_titel <- get_element(sprintf(
+      "#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(%d) > label:nth-child(1)", 
+      i
+    ))
+    feld_wert <- get_element(sprintf(
+      "#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(%d) > div:nth-child(2)", 
+      i
+    ))
 
-
-  feld_2_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > label:nth-child(1)')
-  feld_2_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
-  check_obj_exist_value(feld_2_titel)
- 
-  feld_3_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > label:nth-child(1)')
-  feld_3_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(2)')
-  check_obj_exist_value(feld_3_titel)
-
-  feld_4_titel <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > label:nth-child(1)')
-  feld_4_wert <- get_element('#detailViewData\\:tabContainer\\:term-planning-container\\:parallelGroupSchedule_1\\:basicDataFieldset\\:basicDataFieldset_innerFieldset > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(2)')
-  check_obj_exist_value(feld_4_titel)
-
+    # Dynamisch Objekte erstellen
+    assign(paste0("feld_", i, "_titel"), feld_titel)
+    assign(paste0("feld_", i, "_wert"), feld_wert)
+    
+    # Prüfen
+    check_obj_exist_value(feld_titel)
+  } 
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   # 2. Tab: Inhalte
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -249,7 +248,6 @@ for (i in css_selectors) {
   felder_titel <- list(feld_1_titel, feld_2_titel, feld_3_titel, feld_4_titel)
   felder_wert <- list(feld_1_wert, feld_2_wert, feld_3_wert, feld_4_wert)
 
-  # Dynamische Spalten nur hinzufügen, wenn Titel nicht NA sind
  # Dynamische Spalten nur hinzufügen, wenn Titel nicht NA sind
   for (i in seq_along(felder_titel)) {
     if (!is.na(felder_titel[[i]]) && felder_titel[[i]] != "") {
