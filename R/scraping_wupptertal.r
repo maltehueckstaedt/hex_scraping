@@ -66,8 +66,7 @@ css_selectors <- sprintf(
 
 iteration <- 1
 
-ergebnisse <- tibble(
-)
+ergebnisse <- tibble()
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comment: Betätigt Kurs-Selektor
@@ -75,6 +74,7 @@ ergebnisse <- tibble(
 
 for (i in css_selectors) { 
   
+  print(i)
   # Finde die Kurse auf der Überblicksseite
   kurs <- tryCatch({
     elem <- rmdr$findElement(using = "css selector", i)
@@ -104,15 +104,14 @@ for (i in css_selectors) {
 
   base_info_df <- tibble(
     Label = label_texts,
-    Answer = answer_texts
-  ) %>%
+    Answer = answer_texts) %>%
     # Gruppiere nach Label, um mehrfach vorkommende Einträge zusammenzufassen
     group_by(Label) %>%
     summarise(Answer = list(unique(Answer)), .groups = "drop") %>%
-    # Ins breite Format überführen
+    # In Long-Format überführen
     pivot_wider(names_from = Label, values_from = Answer)
 
-  # Erstelle einen Tipple mit den extrahierten Daten
+  # Erstelle einen Tibble mit den extrahierten Daten
   neue_zeile <- base_info_df
 
   # Printe welche Variablen gescrapet wurden
