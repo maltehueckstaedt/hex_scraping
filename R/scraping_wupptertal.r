@@ -23,11 +23,11 @@ source("R/functions/helper_functions.r")
 # Comment: Starte Browser
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Starten einer Remote-Sitzung mit Chrome auf PC
- driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
+# Starten einer Remote-Sitzung mit Chrome auf Privat-PC
+# driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
 
-# Starten einer Remote-Sitzung mit Chrome auf MAC
-# driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.86", port = 1234L)
+# Starten einer Remote-Sitzung mit Chrome auf Abeits-PC
+driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.85", port = 1234L)
 
  
 # Zugriff auf die gestartete Sitzung
@@ -44,24 +44,9 @@ rmdr$maxWindowSize() # erzeuge maximale Fenstergröße damit alles Informationen
 # aus.
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
  
-rmdr$navigate("https://www.studilöwe.uni-wuppertal.de/qisserver/pages/cm/exa/coursemanagement/basicCourseData.xhtml?_flowId=searchCourseNonStaff-flow&_flowExecutionKey=e1s1")
-
-# Finde Dropdownmenü für Sem-Auswahl
-sem_dropdown <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_label"]')
-sem_dropdown$clickElement()
-
-# Wähle "Wintersemester 2023"
-sem <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_2"]')
-sem$clickElement()
- 
-# Finde das Feld "Suchbegriffe" über xpath
-Suchbegriffe <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_0_1ad08e26bde39c9e4f1833e56dcce9b5:id1ad08e26bde39c9e4f1833e56dcce9b5"]')
-
-# Klicke in das Feld Suchbegriffe
-Suchbegriffe$clickElement()
-# Drücke ohne weitere Eingabe >Enter< im Feld Suchbegriffe, 
-# damit alle Vorlesungen angezeigt werden
-Suchbegriffe$sendKeysToElement(list(key = "enter"))
+# jüngstens Semester == 0, ältestestes derzeit == 16
+# Parameter muss genau über Chrome verifiziert werden
+choose_semester(rmdr, 2)
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comment: Die Vorlesungen werden angezeigt. Immer zehn Stück 
@@ -99,7 +84,7 @@ for (i in css_selectors) {
     next
   })
   
-  iteration <- iteration + 1
+  iteration <- iteration + 1 # Aktualisiere Iteration
 
   # Erzeuge Nachricht, welcher Kurs gescrapet wird:
   titel <- get_element('#\\31 8a8022569d6ced829f833aa855530ce')
@@ -117,7 +102,7 @@ for (i in css_selectors) {
   answers <- rmdr$findElements(using = "css selector", ".labelItemLine .answer")
   answer_texts <- sapply(answers, function(el) el$getElementText())
 
-  data <- tibble(
+  base_info_df <- tibble(
     Label = label_texts,
     Answer = answer_texts
   ) %>%
@@ -127,8 +112,11 @@ for (i in css_selectors) {
     # Ins breite Format überführen
     pivot_wider(names_from = Label, values_from = Answer)
 
-  check_obj_exist(data)
+  # Erstelle einen Tipple mit den extrahierten Daten
+  neue_zeile <- base_info_df
 
+  # Printe welche Variablen gescrapet wurden
+  check_obj_exist(base_info_df)
 
   #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   # 2. Tab: Inhalte
@@ -144,7 +132,7 @@ for (i in css_selectors) {
   # Erzeuge die Liste der XPaths für die spezifischen IDs
   container_ids <- sprintf(
     '//*[@id="detailViewData:tabContainer:term-planning-container:j_id_6m_13_2_%d_1"]',
-    0:20
+    0:20 # Suche sicherheitshalber in bis zu 20 Elementen mit fortlaufender Nummerierung des obigen selectors
   )
 
   # Zähle die Container, die tatsächlich auf der Seite existieren
@@ -158,13 +146,14 @@ for (i in css_selectors) {
   }
 
   # Anzahl der gefundenen Container ausgeben
-  cat("Anzahl der gefundenen Container im Tab Inhalt:", found_containers, "\n")
+  cat("Anzahl der gefundenen Container im Tab Inhalt:", "\033[32m", found_containers, "\033[0m", "\n")
 
   # Listen für die gesammelten Titel und Inhalte
   container_titles <- list()
   container_contents <- list()
 
   if (found_containers > 0) {
+    cat("\033[32mEs werden folgende Variablen gescrapt:\033[0m\n")
     for (i in 1:found_containers) {
       # Dynamische Erstellung der XPathes für Titel und Inhalt
       title_xpath <- sprintf(
@@ -209,15 +198,13 @@ for (i in css_selectors) {
     data_tibble <- tibble() # Leeres tibble, falls keine Container gefunden wurden
   }
   
-  # Erstelle ein tibble mit den extrahierten Daten
-  neue_zeile <- data
-
-
+  # Printe welche Variablen gescrapet wurden
+  check_obj_exist(data_tibble)
 
   if (found_containers > 0) {
   neue_zeile <- bind_cols(neue_zeile,data_tibble)
   }
-  print(neue_zeile)
+  
   # Füge die neue Zeile zum bestehenden tibble hinzu
   ergebnisse <- bind_rows(ergebnisse, neue_zeile)
   
