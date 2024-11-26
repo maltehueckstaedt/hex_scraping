@@ -33,4 +33,27 @@ check_obj_exist <- function(df) {
     cat("\033[33m>>", col_name, "<<\033[0m", "erfolgreich erhoben\n")
   }
 }
+
+
+choose_semester <- function(rmdr, semester_number) {
+  # Seite navigieren
+  rmdr$navigate("https://www.studilöwe.uni-wuppertal.de/qisserver/pages/cm/exa/coursemanagement/basicCourseData.xhtml?_flowId=searchCourseNonStaff-flow&_flowExecutionKey=e1s1")
+  
+  # Finde Dropdown-Menü für Semesterauswahl
+  sem_dropdown <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_label"]')
+  sem_dropdown$clickElement()
+  
+  # Wähle das Semester basierend auf der übergebenen Zahl
+  semester_selector <- paste0('//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_3_abb156a1126282e4cf40d48283b4e76d:idabb156a1126282e4cf40d48283b4e76d:termSelect_', semester_number, '"]')
+  sem <- rmdr$findElement(using = "xpath", semester_selector)
+  sem$clickElement()
+  
+  # Finde das Feld "Suchbegriffe" über XPath
+  Suchbegriffe <- rmdr$findElement(using = "xpath", '//*[@id="genericSearchMask:search_e4ff321960e251186ac57567bec9f4ce:cm_exa_eventprocess_basic_data:fieldset:inputField_0_1ad08e26bde39c9e4f1833e56dcce9b5:id1ad08e26bde39c9e4f1833e56dcce9b5"]')
+  
+  # Klicke in das Feld Suchbegriffe und drücke Enter
+  Suchbegriffe$clickElement()
+  Suchbegriffe$sendKeysToElement(list(key = "enter"))
+}
+
  
