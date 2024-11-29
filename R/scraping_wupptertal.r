@@ -208,7 +208,9 @@ for (i in seq_along(chunks)) {
   for (attempt in 1:5) {
     tryCatch({
       # Finde und klicke den Weiter-Button
-      weiter_button <- rmdr$findElement(using = "css selector", "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Navi2next")
+      
+      weiter_button <- rmdr$findElement(using = "id", value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next")
+      #weiter_button <- rmdr$findElement(using = "css selector", "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Navi2next")
       weiter_button$clickElement()
       
       # Prüfen, ob das gewünschte Element vorhanden ist
