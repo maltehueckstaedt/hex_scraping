@@ -70,12 +70,17 @@ chunks <- split(css_selectors, ceiling(seq_along(css_selectors) / 10))
 
 # Initialisiere Variablen
 iteration <- 0
-ergebnisse <- tibble()
+final_results <- tibble()
 
 # Scrape Base-Information
 
 semester <- get_element("#genSearchRes\\:genericSearchResult > div.text_white_searchresult > span")
 scraping_datum <- Sys.Date()
+
+sem_scrape_date_df <- tibble(
+  semester=semester,
+  scraping_datum=scraping_datum
+)
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comment: Betätigt Kurs-Selektor
@@ -122,15 +127,14 @@ for (i in seq_along(chunks)) {
     
     base_info_df <- tibble(
       Label = label_texts,
-      Answer = answer_texts
-    ) %>%
+      Answer = answer_texts) %>%
       group_by(Label) %>%
       summarise(Answer = list(unique(Answer)), .groups = "drop") %>%
       pivot_wider(names_from = Label, values_from = Answer)
     
     
     # Printe welche Variablen gescrapet wurden
-    check_obj_exist(base_info_df)
+    check_obj_exist(base_info_df) 
     
     #////////////////////////////////////////////////////////////
     #////////////////////////////////////////////////////////////
@@ -213,7 +217,10 @@ for (i in seq_along(chunks)) {
     
     if (found_containers > 0) {
       base_info_inhalte_df <- bind_cols(base_info_df, inhalte_df)
+    } else {
+      base_info_inhalte_df <- base_info_df
     }
+    
     
     #////////////////////////////////////////////////////////////
     #////////////////////////////////////////////////////////////
@@ -251,7 +258,7 @@ for (i in seq_along(chunks)) {
         as_tibble()
       
       # Tabelle anzeigen
-      check_obj_exist(zugeordnete_module_tibble)
+      check_obj_exist(zugeordnete_module_tibble) 
       
     }, error = function(e) {
       message("Fehler beim Abrufen der Tabelle: ", e$message)
@@ -291,7 +298,9 @@ for (i in seq_along(chunks)) {
         clean_names()
       
       check_obj_exist(zugeordnete_studiengaenge_tibble)
+      
     }
+    
 
     module_studiengaeng_df <- tibble(
       zugeordnete_module_tibble = list(zugeordnete_module_tibble %||% NA),
@@ -306,8 +315,8 @@ for (i in seq_along(chunks)) {
     #////////////////////////////////////////////////////////////
     #////////////////////////////////////////////////////////////
     
-    aktuelle_ergebnisse <- cbind(base_info_inhalte_df, module_studiengaeng_df)
-    ergebnisse <- bind_rows(ergebnisse, aktuelle_ergebnisse)
+    interim_results <- bind_cols(base_info_inhalte_df, module_studiengaeng_df, sem_scrape_date_df)
+    final_results <- bind_rows(final_results, interim_results)
     
     zurück_button <- rmdr$findElement(using = "css selector", "#form\\:dialogHeader\\:backButtonTop")
     zurück_button$clickElement()
