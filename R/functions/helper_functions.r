@@ -56,4 +56,25 @@ choose_semester <- function(rmdr, semester_number) {
   Suchbegriffe$sendKeysToElement(list(key = "enter"))
 }
 
+
+
+waitForElementAndClick <- function(driver, using, value, action = NULL) {
+  element <- NULL
+  while (is.null(element)) {
+    element <- tryCatch(
+      {
+        driver$findElement(using = using, value = value)
+      },
+      error = function(e) {
+        NULL
+      }
+    )
+  }
+  
+  if (!is.null(action) && action == "click") {
+    element$clickElement()
+  }
+  
+  return(element)
+}
  
