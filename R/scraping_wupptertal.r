@@ -7,7 +7,7 @@
 #////////////////////////////////////////////////////////////
  
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, rvest, RSelenium,rlang)
+pacman::p_load(tidyverse, rvest, RSelenium,rlang,janitor)
 
 source("R/functions/helper_functions.r")
 
@@ -18,10 +18,7 @@ source("R/functions/helper_functions.r")
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
- 
-#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-# Comment: Starte Browser
-#.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 
 # Starten einer Remote-Sitzung mit Chrome auf Privat-PC
 driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
@@ -32,11 +29,15 @@ driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L
  
 # Zugriff auf die gestartete Sitzung
 rmdr <- driver[["client"]]
-rmdr$maxWindowSize() # erzeuge maximale Fenstergröße damit alles Informationen gescrapet werden können.
+rmdr$maxWindowSize() # erzeuge maximale Fenstergröße
 
  
 #////////////////////////////////////////////////////////////
-## SCRAPE DATA ----------------------------------------------
+#////////////////////////////////////////////////////////////
+#////////////////////////////////////////////////////////////
+# SCRAPE DATA ----------------------------------------------
+#////////////////////////////////////////////////////////////
+#////////////////////////////////////////////////////////////
 #////////////////////////////////////////////////////////////
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -56,7 +57,7 @@ choose_semester(rmdr, 2)
 
 css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
-  0:9
+  0:2
 )
  
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -70,6 +71,11 @@ chunks <- split(css_selectors, ceiling(seq_along(css_selectors) / 10))
 # Initialisiere Variablen
 iteration <- 0
 ergebnisse <- tibble()
+
+# Scrape Base-Information
+
+semester <- get_element("#genSearchRes\\:genericSearchResult > div.text_white_searchresult > span")
+scraping_datum <- Sys.Date()
 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comment: Betätigt Kurs-Selektor
@@ -99,11 +105,16 @@ for (i in seq_along(chunks)) {
     cat("\033[34m", paste0("Start das scraping von Kurs Nr.", iteration, ":"), "\033[0m",
         "\033[32m", titel, "\033[0m\n")
     
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    # 1. Tab: Parallelgruppen/Termine. Extrahiere die gewünschten 
-    # Informationen und bestätige Extraktion. Starte mit 
-    # >>Grunddaten<<
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    # TAB 1: Parallelgruppen/Termine -------------------------
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    
+    cat("\033[31mstarte scraping von Variablen in Tab >>Parallelgruppen/Termine<<\033[0m\n")
+    
     labels <- rmdr$findElements(using = "css selector", ".labelItemLine label")
     label_texts <- sapply(labels, function(el) el$getElementText())
     answers <- rmdr$findElements(using = "css selector", ".labelItemLine .answer")
@@ -117,14 +128,19 @@ for (i in seq_along(chunks)) {
       summarise(Answer = list(unique(Answer)), .groups = "drop") %>%
       pivot_wider(names_from = Label, values_from = Answer)
     
-    neue_zeile <- base_info_df
     
     # Printe welche Variablen gescrapet wurden
     check_obj_exist(base_info_df)
     
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    # 2. Tab: Inhalte
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    # TAB 2: Inhalte ------------------------------------------
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    
+    cat("\033[31mstarte scraping von Variablen in Tab >>Inhalte<<\033[0m\n")
     
     tryCatch({
       inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
@@ -183,25 +199,31 @@ for (i in seq_along(chunks)) {
     
     if (found_containers > 0) {
       if (length(container_titles) == length(container_contents)) {
-        data_tibble <- tibble::tibble(
+        inhalte_df <- tibble::tibble(
           !!!setNames(container_contents, container_titles)
         )
       } else {
         stop("Die Anzahl der Titel und Inhalte stimmt nicht überein.")
       }
     } else {
-      data_tibble <- tibble()
+      inhalte_df <- tibble()
     }
     
-    check_obj_exist(data_tibble)
+    check_obj_exist(inhalte_df)
     
     if (found_containers > 0) {
-      neue_zeile <- bind_cols(neue_zeile, data_tibble)
+      base_info_inhalte_df <- bind_cols(base_info_df, inhalte_df)
     }
     
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    # 3. Tab: Module
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    # TAB 3.1: Module -----------------------------------------
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    
+    cat("\033[31mstarte scraping von Variablen in Tab >>Module/Studiengänge<<\033[0m\n")
     
     zugeordnete_module_tibble <- NULL
     
@@ -209,36 +231,39 @@ for (i in seq_along(chunks)) {
     module_tab$clickElement()
     
     tryCatch({
-      Sys.sleep(5) # kurze Pause, um sicherzustellen, dass die Seite geladen ist
+      # Warten, bis die Seite geladen ist (explizites Warten)
+      Sys.sleep(5)
       
-      # HTML-Tabelle mit CSS-Selector abrufen
+      # Tabelle abrufen
       zugeordnete_module <- rmdr$findElement(
         using = "css selector", 
         "#detailViewData\\:tabContainer\\:term-planning-container\\:modules\\:moduleAssignments\\:moduleAssignmentsTable"
       )
       
-      # HTML der Tabelle extrahieren
-      zugeordnete_module_html <- zugeordnete_module$getElementAttribute("outerHTML")[[1]]
-      
-      # Tabelle parsen und in tibble umwandeln
-      zugeordnete_module_tibble <- zugeordnete_module_html %>%
+      # Tabelle extrahieren und parsen
+      zugeordnete_module_tibble <- zugeordnete_module$getElementAttribute("outerHTML")[[1]] %>%
         read_html() %>%
         html_table(fill = TRUE) %>%
-        .[[1]] %>% 
-        as_tibble() %>%
-        mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*"))))
+        .[[1]] %>%
+        mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*")))) %>% 
+        rename_with(~ gsub("Aufwärts sortieren", "", .x, fixed = TRUE)) %>% 
+        clean_names %>% 
+        as_tibble()
       
       # Tabelle anzeigen
-      print(zugeordnete_module_tibble)
+      check_obj_exist(zugeordnete_module_tibble)
       
     }, error = function(e) {
-      # Fehlerbehandlung: Element nicht gefunden
-      message("Element zugeordnete Module nicht gefunden: ", e$message)
+      message("Fehler beim Abrufen der Tabelle: ", e$message)
     })
-
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    # 4. Tab: Studiengänge
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    # TAB 3.2: Studiengänge ------------------------------------
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
     
     zugeordnete_studiengaenge_tibble <- NULL
     
@@ -261,25 +286,28 @@ for (i in seq_along(chunks)) {
         html_table(fill = TRUE) %>%
         .[[1]] %>%
         as_tibble() %>%
-        mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*"))))
+        rename_with(~ gsub("Aufwärts sortieren", "", .x, fixed = TRUE)) %>%
+        mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*")))) %>% 
+        clean_names()
       
-      print(zugeordnete_studiengaenge_tibble)
-
+      check_obj_exist(zugeordnete_studiengaenge_tibble)
     }
 
     module_studiengaeng_df <- tibble(
       zugeordnete_module_tibble = list(zugeordnete_module_tibble %||% NA),
       zugeordnete_studiengaenge_tibble = list(zugeordnete_studiengaenge_tibble %||% NA)
     )
-
-    print(module_studiengaeng_df)
-    neue_zeile <- cbind(neue_zeile,module_studiengaeng_df)
     
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    # 4. Zusammenfügen aller Daten
-    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    # ZUSAMMENFÜGEN DER DATEN ----------------------------------
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
+    #////////////////////////////////////////////////////////////
     
-    ergebnisse <- bind_rows(ergebnisse, neue_zeile)
+    aktuelle_ergebnisse <- cbind(base_info_inhalte_df, module_studiengaeng_df)
+    ergebnisse <- bind_rows(ergebnisse, aktuelle_ergebnisse)
     
     zurück_button <- rmdr$findElement(using = "css selector", "#form\\:dialogHeader\\:backButtonTop")
     zurück_button$clickElement()
@@ -297,8 +325,6 @@ for (i in seq_along(chunks)) {
       Sys.sleep(2)
  
     })
-    
- 
 
   }
 
@@ -310,3 +336,10 @@ system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
 
 #genSearchRes\:id3df798d58b4bacd9\:id3df798d58b4bacd9Navi2next
 
+#////////////////////////////////////////////////////////////
+#////////////////////////////////////////////////////////////
+#////////////////////////////////////////////////////////////
+# DATENEXPORT ----------------------------------
+#////////////////////////////////////////////////////////////
+#////////////////////////////////////////////////////////////
+#////////////////////////////////////////////////////////////
