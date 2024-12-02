@@ -24,10 +24,10 @@ source("R/functions/helper_functions.r")
 #.:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 # Starten einer Remote-Sitzung mit Chrome auf Privat-PC
-# driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
+driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
 
 # Starten einer Remote-Sitzung mit Chrome auf Abeits-PC
-driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.85", port = 1234L)
+#driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.85", port = 1234L)
 
  
 # Zugriff auf die gestartete Sitzung
@@ -56,7 +56,7 @@ choose_semester(rmdr, 2)
 
 css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
-  0:200
+  0:9
 )
  
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -125,6 +125,7 @@ for (i in seq_along(chunks)) {
     #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     # 2. Tab: Inhalte
     #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    
     tryCatch({
       inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
       inhalte_tab$clickElement()
@@ -198,6 +199,86 @@ for (i in seq_along(chunks)) {
       neue_zeile <- bind_cols(neue_zeile, data_tibble)
     }
     
+    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    # 3. Tab: Module
+    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    
+    zugeordnete_module_tibble <- NULL
+    
+    module_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:modulesCourseOfStudiesTab')
+    module_tab$clickElement()
+    
+    tryCatch({
+      Sys.sleep(5) # kurze Pause, um sicherzustellen, dass die Seite geladen ist
+      
+      # HTML-Tabelle mit CSS-Selector abrufen
+      zugeordnete_module <- rmdr$findElement(
+        using = "css selector", 
+        "#detailViewData\\:tabContainer\\:term-planning-container\\:modules\\:moduleAssignments\\:moduleAssignmentsTable"
+      )
+      
+      # HTML der Tabelle extrahieren
+      zugeordnete_module_html <- zugeordnete_module$getElementAttribute("outerHTML")[[1]]
+      
+      # Tabelle parsen und in tibble umwandeln
+      zugeordnete_module_tibble <- zugeordnete_module_html %>%
+        read_html() %>%
+        html_table(fill = TRUE) %>%
+        .[[1]] %>% 
+        as_tibble() %>%
+        mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*"))))
+      
+      # Tabelle anzeigen
+      print(zugeordnete_module_tibble)
+      
+    }, error = function(e) {
+      # Fehlerbehandlung: Element nicht gefunden
+      message("Element zugeordnete Module nicht gefunden: ", e$message)
+    })
+
+    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    # 4. Tab: Studiengänge
+    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    
+    zugeordnete_studiengaenge_tibble <- NULL
+    
+    # Tabelle mit `findElement` abrufen (inkl. Retry-Logik)
+    tryCatch({
+      zugeordnete_studiengaenge <- rmdr$findElement(using = "css selector", 
+                                                    "#detailViewData\\:tabContainer\\:term-planning-container\\:courseOfStudies\\:courseOfStudyAssignments\\:courseOfStudyAssignmentsTable")
+    }, error = function(e) {
+      Sys.sleep(2) # Warten und erneut versuchen
+      zugeordnete_studiengaenge <- rmdr$findElement(using = "css selector", 
+                                                    "#detailViewData\\:tabContainer\\:term-planning-container\\:courseOfStudies\\:courseOfStudyAssignments\\:courseOfStudyAssignmentsTable")
+    })
+    
+    # Falls die Tabelle gefunden wurde, HTML extrahieren und parsen
+    if (!is.null(zugeordnete_studiengaenge)) {
+      zugeordnete_studiengaenge_html <- zugeordnete_studiengaenge$getElementAttribute("outerHTML")[[1]]
+      
+      zugeordnete_studiengaenge_tibble <- zugeordnete_studiengaenge_html %>%
+        read_html() %>%
+        html_table(fill = TRUE) %>%
+        .[[1]] %>%
+        as_tibble() %>%
+        mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*"))))
+      
+      print(zugeordnete_studiengaenge_tibble)
+
+    }
+
+    module_studiengaeng_df <- tibble(
+      zugeordnete_module_tibble = list(zugeordnete_module_tibble %||% NA),
+      zugeordnete_studiengaenge_tibble = list(zugeordnete_studiengaenge_tibble %||% NA)
+    )
+
+    print(module_studiengaeng_df)
+    neue_zeile <- cbind(neue_zeile,module_studiengaeng_df)
+    
+    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    # 4. Zusammenfügen aller Daten
+    #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    
     ergebnisse <- bind_rows(ergebnisse, neue_zeile)
     
     zurück_button <- rmdr$findElement(using = "css selector", "#form\\:dialogHeader\\:backButtonTop")
@@ -205,31 +286,19 @@ for (i in seq_along(chunks)) {
     Sys.sleep(5)
   }
   
-  for (attempt in 1:5) {
     tryCatch({
       # Finde und klicke den Weiter-Button
-      
+      Sys.sleep(5)
       weiter_button <- rmdr$findElement(using = "id", value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next")
       #weiter_button <- rmdr$findElement(using = "css selector", "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Navi2next")
       weiter_button$clickElement()
       
       # Prüfen, ob das gewünschte Element vorhanden ist
       Sys.sleep(2)
-      
-      # Erhöhe um 1 und ersetze die Zahl im Selector
-      selector_next_page <- sprintf("#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction", iteration)
-      
-      if (!is.null(rmdr$findElement(using = "css selector", selector_next_page))) {
-        break
-      }
-    }, error = function(e) {
-      # Ignoriere Fehler und versuche erneut
+ 
     })
     
-    if (attempt == 5) {
-      stop("Weiter-Button konnte nicht erfolgreich betätigt werden.")
-    }
-  }
+ 
 
   }
 
