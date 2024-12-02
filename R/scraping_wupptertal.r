@@ -354,12 +354,18 @@ for (i in seq_along(chunks)) {
     Sys.sleep(5)
   }
   
-  weiter_button <- waitForElementAndClick(
-    driver = rmdr,
-    using = 'id',
-    value = "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Navi2next",
-    action = "css selector"
-  )
+  tryCatch({
+    # Finde und klicke den Weiter-Button
+    Sys.sleep(5)
+    weiter_button <- rmdr$findElement(using = "id", value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next")
+    weiter_button$clickElement()
+    
+    # Prüfen, ob das gewünschte Element vorhanden ist
+    Sys.sleep(2)
+  }, error = function(e) {
+    message("\033[31m", "Kein Weiter-Button gefunden. Der Prozess wird beendet.", "\033[0m")
+    stop("Prozess beendet: Keine weiteren Seiten verfügbar.")
+  })
 
   }
 
