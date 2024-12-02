@@ -57,7 +57,7 @@ choose_semester(rmdr, 2)
 
 css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
-  0:2
+  172:6000
 )
  
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -73,7 +73,6 @@ iteration <- 0
 final_results <- tibble()
 
 # Scrape Base-Information
-
 semester <- get_element("#genSearchRes\\:genericSearchResult > div.text_white_searchresult > span")
 scraping_datum <- Sys.Date()
 
@@ -144,47 +143,65 @@ for (i in seq_along(chunks)) {
     #////////////////////////////////////////////////////////////
     #////////////////////////////////////////////////////////////
     
+    # Beginnt das Scraping der Variablen im Tab "Inhalte"
     cat("\033[31mstarte scraping von Variablen in Tab >>Inhalte<<\033[0m\n")
     
+    # Versuch, den Inhalte-Tab zu finden und zu öffnen
     tryCatch({
+      # Findet den Inhalte-Tab mit dem entsprechenden CSS-Selektor
       inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
+      # Klickt auf den Inhalte-Tab
       inhalte_tab$clickElement()
+      # Wartezeit, um sicherzustellen, dass der Tab geladen ist
       Sys.sleep(5)
     }, error = function(e) {
+      # Fehlerbehandlung, falls der Tab nicht gefunden wird
       message("Inhalte-Tab nicht gefunden.")
     })
     
+    # Generiert XPaths für mögliche Container-IDs
     container_ids <- sprintf(
       '//*[@id="detailViewData:tabContainer:term-planning-container:j_id_6m_13_2_%d_1"]',
       0:20
     )
     
+    # Initialisiert Zähler für gefundene Container
     found_containers <- 0
     
+    # Schleife über die möglichen Container-XPaths
     for (xpath in container_ids) {
+      # Sucht Elemente, die zum aktuellen XPath passen
       elements <- rmdr$findElements(using = "xpath", xpath)
+      # Falls Elemente gefunden werden, erhöht den Zähler
       if (length(elements) > 0) {
         found_containers <- found_containers + 1
       }
     }
     
+    # Gibt die Anzahl der gefundenen Container aus
     cat("Anzahl der gefundenen Container im Tab Inhalt:", "\033[32m", found_containers, "\033[0m", "\n")
     
+    # Initialisiert Listen für Container-Titel und Inhalte
     container_titles <- list()
     container_contents <- list()
     
+    # Falls Container gefunden wurden
     if (found_containers > 0) {
       cat("\033[32mEs werden folgende Variablen gescrapt:\033[0m\n")
+      # Schleife über die gefundenen Container
       for (j in 1:found_containers) {
+        # XPath für den Titel des aktuellen Containers
         title_xpath <- sprintf(
           '/html/body/div[1]/div[3]/div/div[1]/div/div/form[3]/div[2]/div/div/fieldset/div[4]/div/div[2]/fieldset/div[%d]/div/div/div/div[1]/div/div[2]/h2',
           j + 3
         )
+        # XPath für den Inhalt des aktuellen Containers
         content_xpath <- sprintf(
           '/html/body/div[1]/div[3]/div/div[1]/div/div/form[3]/div[2]/div/div/fieldset/div[4]/div/div[2]/fieldset/div[%d]/div/div/div/div[2]',
           j + 3
         )
         
+        # Extrahiert den Titel des Containers, falls vorhanden
         title_elements <- rmdr$findElements(using = "xpath", title_xpath)
         if (length(title_elements) > 0) {
           container_titles[[j]] <- title_elements[[1]]$getElementText()[[1]]
@@ -192,6 +209,7 @@ for (i in seq_along(chunks)) {
           container_titles[[j]] <- NA
         }
         
+        # Extrahiert den Inhalt des Containers, falls vorhanden
         content_elements <- rmdr$findElements(using = "xpath", content_xpath)
         if (length(content_elements) > 0) {
           container_contents[[j]] <- content_elements[[1]]$getElementText()[[1]]
@@ -201,23 +219,31 @@ for (i in seq_along(chunks)) {
       }
     }
     
+    # Prüft, ob Container gefunden wurden
     if (found_containers > 0) {
+      # Falls Anzahl der Titel und Inhalte übereinstimmt
       if (length(container_titles) == length(container_contents)) {
+        # Erstellt ein tibble mit den Titeln als Spaltennamen und den Inhalten als Werte
         inhalte_df <- tibble::tibble(
           !!!setNames(container_contents, container_titles)
         )
       } else {
+        # Falls die Anzahl nicht übereinstimmt, wird ein Fehler ausgelöst
         stop("Die Anzahl der Titel und Inhalte stimmt nicht überein.")
       }
     } else {
+      # Falls keine Container gefunden wurden, wird ein leeres tibble erstellt
       inhalte_df <- tibble()
     }
     
+    # Prüft, ob die DataFrame-Variable existiert
     check_obj_exist(inhalte_df)
     
+    # Bindet die neuen Inhalte an die Basis-Info-DataFrame, falls Inhalte vorhanden sind
     if (found_containers > 0) {
       base_info_inhalte_df <- bind_cols(base_info_df, inhalte_df)
     } else {
+      # Falls keine Inhalte gefunden wurden, bleibt die Basis-Info unverändert
       base_info_inhalte_df <- base_info_df
     }
     
@@ -323,17 +349,18 @@ for (i in seq_along(chunks)) {
     Sys.sleep(5)
   }
   
-    tryCatch({
-      # Finde und klicke den Weiter-Button
-      Sys.sleep(5)
-      weiter_button <- rmdr$findElement(using = "id", value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next")
-      #weiter_button <- rmdr$findElement(using = "css selector", "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Navi2next")
-      weiter_button$clickElement()
-      
-      # Prüfen, ob das gewünschte Element vorhanden ist
-      Sys.sleep(2)
- 
-    })
+  tryCatch({
+    # Finde und klicke den Weiter-Button
+    Sys.sleep(5)
+    weiter_button <- rmdr$findElement(using = "id", value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next")
+    weiter_button$clickElement()
+    
+    # Prüfen, ob das gewünschte Element vorhanden ist
+    Sys.sleep(2)
+  }, error = function(e) {
+    message("\033[31m", "Kein Weiter-Button gefunden. Der Prozess wird beendet.", "\033[0m")
+    stop("Prozess beendet: Keine weiteren Seiten verfügbar.")
+  })
 
   }
 
