@@ -57,7 +57,7 @@ choose_semester(rmdr, 2)
 
 css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
-  172:6000
+  840:6000
 )
  
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -147,17 +147,14 @@ for (i in seq_along(chunks)) {
     cat("\033[31mstarte scraping von Variablen in Tab >>Inhalte<<\033[0m\n")
     
     # Versuch, den Inhalte-Tab zu finden und zu öffnen
-    tryCatch({
-      # Findet den Inhalte-Tab mit dem entsprechenden CSS-Selektor
-      inhalte_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab')
-      # Klickt auf den Inhalte-Tab
-      inhalte_tab$clickElement()
-      # Wartezeit, um sicherzustellen, dass der Tab geladen ist
-      Sys.sleep(5)
-    }, error = function(e) {
-      # Fehlerbehandlung, falls der Tab nicht gefunden wird
-      message("Inhalte-Tab nicht gefunden.")
-    })
+    inhalte_tab <- waitForElementAndClick(
+      driver = rmdr,
+      using = 'css selector',
+      value = "#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:contentsTab",
+      action = "click"
+    )
+    
+    Sys.sleep(5)
     
     # Generiert XPaths für mögliche Container-IDs
     container_ids <- sprintf(
@@ -260,8 +257,12 @@ for (i in seq_along(chunks)) {
     
     zugeordnete_module_tibble <- NULL
     
-    module_tab <- rmdr$findElement(using = "css selector", '#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:modulesCourseOfStudiesTab')
-    module_tab$clickElement()
+    module_tab <- waitForElementAndClick(
+      driver = rmdr,
+      using = 'css selector',
+      value = "#detailViewData\\:tabContainer\\:term-planning-container\\:tabs\\:modulesCourseOfStudiesTab",
+      action = "click"
+    )
     
     tryCatch({
       # Warten, bis die Seite geladen ist (explizites Warten)
@@ -344,23 +345,21 @@ for (i in seq_along(chunks)) {
     interim_results <- bind_cols(base_info_inhalte_df, module_studiengaeng_df, sem_scrape_date_df)
     final_results <- bind_rows(final_results, interim_results)
     
-    zurück_button <- rmdr$findElement(using = "css selector", "#form\\:dialogHeader\\:backButtonTop")
-    zurück_button$clickElement()
+    zurück_button <- waitForElementAndClick(
+      driver = rmdr,
+      using = 'css selector',
+      value = "#form\\:dialogHeader\\:backButtonTop",
+      action = "click"
+    )
     Sys.sleep(5)
   }
   
-  tryCatch({
-    # Finde und klicke den Weiter-Button
-    Sys.sleep(5)
-    weiter_button <- rmdr$findElement(using = "id", value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next")
-    weiter_button$clickElement()
-    
-    # Prüfen, ob das gewünschte Element vorhanden ist
-    Sys.sleep(2)
-  }, error = function(e) {
-    message("\033[31m", "Kein Weiter-Button gefunden. Der Prozess wird beendet.", "\033[0m")
-    stop("Prozess beendet: Keine weiteren Seiten verfügbar.")
-  })
+  weiter_button <- waitForElementAndClick(
+    driver = rmdr,
+    using = 'id',
+    value = "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Navi2next",
+    action = "css selector"
+  )
 
   }
 
