@@ -60,7 +60,12 @@ choose_semester <- function(rmdr, semester_number) {
 
 waitForElementAndClick <- function(driver, using, value, action = NULL) {
   element <- NULL
-  while (is.null(element)) {
+  attempts <- 0
+  max_attempts <- 5
+  wait_time <- 5 # Sekunden
+  
+  while (is.null(element) && attempts < max_attempts) {
+    attempts <- attempts + 1
     element <- tryCatch(
       {
         driver$findElement(using = using, value = value)
@@ -69,12 +74,34 @@ waitForElementAndClick <- function(driver, using, value, action = NULL) {
         NULL
       }
     )
+    
+    # Scrollen Sie das Element ins Zentrum des Browserfensters
+    rmdr$executeScript(
+      "arguments[0].scrollIntoView({ behavior: 'smooth', block: 'center' });",
+      list(element)
+    )
+    
+    
+    if (is.null(element) && attempts < max_attempts) {
+      Sys.sleep(wait_time)
+    }
   }
   
-  if (!is.null(action) && action == "click") {
-    element$clickElement()
+  # Führe die Aktion aus, falls das Element gefunden wurde
+  if (!is.null(element)) {
+    if (!is.null(action) && action == "click") {
+      tryCatch(
+        {
+          element$clickElement()
+        },
+        error = function(e) {
+          warning("Fehler beim Klicken auf das Element: ", e$message)
+        }
+      )
+    }
+  } else {
+    warning("Element wurde nach ", max_attempts, " Versuchen nicht gefunden.")
   }
   
   return(element)
 }
- 

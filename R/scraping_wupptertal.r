@@ -21,10 +21,10 @@ source("R/functions/helper_functions.r")
 
 
 # Starten einer Remote-Sitzung mit Chrome auf Privat-PC
-driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
+# driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
 
 # Starten einer Remote-Sitzung mit Chrome auf Abeits-PC
-#driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.85", port = 1234L)
+driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.85", port = 1234L)
 
  
 # Zugriff auf die gestartete Sitzung
@@ -57,7 +57,7 @@ choose_semester(rmdr, 2)
 
 css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
-  840:6000
+  0:20
 )
  
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -87,11 +87,23 @@ sem_scrape_date_df <- tibble(
 
 # Haupt-Loop durch die Gruppen
 for (i in seq_along(chunks)) {
-  Sys.sleep(5)
+  
   css_chunk <- chunks[[i]]
   
-  for (i in css_chunk) { 
+  for (i in css_chunk) {
     print(i)
+    Sys.sleep(5)
+    
+    tryCatch({
+    # Finden Sie das Element
+    elem <- rmdr$findElement(using = "css selector", i)
+    # Scrollen Sie das Element ins Zentrum des Browserfensters
+    rmdr$executeScript(
+      "arguments[0].scrollIntoView({ behavior: 'smooth', block: 'center' });",
+      list(elem)
+    )})
+    Sys.sleep(5)
+    
     # Finde die Kurse auf der Überblicksseite
     kurs <- tryCatch({
       elem <- rmdr$findElement(using = "css selector", i)
@@ -351,21 +363,17 @@ for (i in seq_along(chunks)) {
       value = "#form\\:dialogHeader\\:backButtonTop",
       action = "click"
     )
-    Sys.sleep(5)
   }
   
-  tryCatch({
-    # Finde und klicke den Weiter-Button
-    Sys.sleep(5)
-    weiter_button <- rmdr$findElement(using = "id", value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next")
-    weiter_button$clickElement()
-    
-    # Prüfen, ob das gewünschte Element vorhanden ist
-    Sys.sleep(2)
-  }, error = function(e) {
-    message("\033[31m", "Kein Weiter-Button gefunden. Der Prozess wird beendet.", "\033[0m")
-    stop("Prozess beendet: Keine weiteren Seiten verfügbar.")
-  })
+  #scroll nach ganz unten:
+  rmdr$executeScript("window.scrollTo(0, document.body.scrollHeight);")
+  Sys.sleep(5)
+  weiter_button <- waitForElementAndClick(
+    driver = rmdr,
+    using = 'id',
+    value = "genSearchRes:id3df798d58b4bacd9:id3df798d58b4bacd9Navi2next",
+    action = "click"
+  )
 
   }
 
