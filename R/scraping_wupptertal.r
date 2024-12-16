@@ -21,10 +21,23 @@ source("R/functions/helper_functions.r")
 
 
 # Starten einer Remote-Sitzung mit Chrome auf Privat-PC
-# driver <- rsDriver(browser = "chrome", chromever = "125.0.6422.60", port = 1234L)
+# Chrome options für headless Mode
+chrome_options <- list(
+  chromeOptions = list(
+    args = c("--headless", "--disable-gpu", "--window-size=1280,800")
+  )
+)
+
+# RSelenium Driver starten
+driver <- rsDriver(
+  browser = "chrome",
+  chromever = "125.0.6422.60",
+  extraCapabilities = chrome_options,
+  port = 1234L
+)
 
 # Starten einer Remote-Sitzung mit Chrome auf Abeits-PC
-driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.85", port = 1234L)
+# driver <- rsDriver(browser = "chrome", chromever = "131.0.6778.85", port = 1234L)
 
  
 # Zugriff auf die gestartete Sitzung
@@ -47,8 +60,10 @@ rmdr$maxWindowSize() # erzeuge maximale Fenstergröße
  
 # jüngstens Semester == 0, ältestestes derzeit == 16
 # Parameter muss genau über Chrome verifiziert werden
-choose_semester(rmdr, 2)
+choose_semester(rmdr, 9)
 
+ 
+ 
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comment: Die Vorlesungen werden angezeigt. Immer zehn Stück 
 # pro Seite bei insgesamt ca. 200-300 Seiten. Erzeuge 
@@ -57,7 +72,7 @@ choose_semester(rmdr, 2)
 
 css_selectors <- sprintf(
   "#genSearchRes\\:id3df798d58b4bacd9\\:id3df798d58b4bacd9Table\\:%d\\:tableRowAction",
-  0:20
+  0:3000
 )
  
 #::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -92,7 +107,7 @@ for (i in seq_along(chunks)) {
   
   for (i in css_chunk) {
     print(i)
-    Sys.sleep(5)
+    Sys.sleep(2)
     
     tryCatch({
     # Finden Sie das Element
@@ -102,13 +117,13 @@ for (i in seq_along(chunks)) {
       "arguments[0].scrollIntoView({ behavior: 'smooth', block: 'center' });",
       list(elem)
     )})
-    Sys.sleep(5)
+    Sys.sleep(2)
     
     # Finde die Kurse auf der Überblicksseite
     kurs <- tryCatch({
       elem <- rmdr$findElement(using = "css selector", i)
       elem$clickElement()
-      Sys.sleep(5)
+      Sys.sleep(2)
     }, error = function(e) {
       message("\033[31m", "css zum Kurs nicht gefunden: ", i, "\033[0m")
       next
@@ -166,7 +181,7 @@ for (i in seq_along(chunks)) {
       action = "click"
     )
     
-    Sys.sleep(5)
+    Sys.sleep(2)
     
     # Generiert XPaths für mögliche Container-IDs
     container_ids <- sprintf(
@@ -276,32 +291,43 @@ for (i in seq_along(chunks)) {
       action = "click"
     )
     
-    tryCatch({
-      # Warten, bis die Seite geladen ist (explizites Warten)
-      Sys.sleep(5)
-      
-      # Tabelle abrufen
-      zugeordnete_module <- rmdr$findElement(
-        using = "css selector", 
-        "#detailViewData\\:tabContainer\\:term-planning-container\\:modules\\:moduleAssignments\\:moduleAssignmentsTable"
-      )
-      
-      # Tabelle extrahieren und parsen
-      zugeordnete_module_tibble <- zugeordnete_module$getElementAttribute("outerHTML")[[1]] %>%
-        read_html() %>%
-        html_table(fill = TRUE) %>%
-        .[[1]] %>%
-        mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*")))) %>% 
-        rename_with(~ gsub("Aufwärts sortieren", "", .x, fixed = TRUE)) %>% 
-        clean_names %>% 
-        as_tibble()
-      
-      # Tabelle anzeigen
-      check_obj_exist(zugeordnete_module_tibble) 
-      
-    }, error = function(e) {
-      message("Fehler beim Abrufen der Tabelle: ", e$message)
-    })
+    # Verwende get_element, um sicherzustellen, dass das Element existiert und Texte extrahiert werden können
+    zugeordnete_module_text <- get_element("#detailViewData\\:tabContainer\\:term-planning-container\\:modules\\:moduleAssignments\\:moduleAssignmentsTable")
+
+    if (is.na(zugeordnete_module_text)) {
+      message("Das gewünschte Element konnte nicht gefunden werden oder hat keine Inhalte.")
+    } else {
+      # Hier kannst du mit den extrahierten Texten weiterarbeiten
+      message("Element gefunden und verarbeitet.")
+    }
+
+    # 
+    # tryCatch({
+    #   # Warten, bis die Seite geladen ist (explizites Warten)
+    #   Sys.sleep(2)
+    #   
+    #   # Tabelle abrufen
+    #   zugeordnete_module <- rmdr$findElement(
+    #     using = "css selector", 
+    #     "#detailViewData\\:tabContainer\\:term-planning-container\\:modules\\:moduleAssignments\\:moduleAssignmentsTable"
+    #   )
+    #   
+    #   # Tabelle extrahieren und parsen
+    #   zugeordnete_module_tibble <- zugeordnete_module$getElementAttribute("outerHTML")[[1]] %>%
+    #     read_html() %>%
+    #     html_table(fill = TRUE) %>%
+    #     .[[1]] %>%
+    #     mutate(across(everything(), ~ str_remove_all(., paste0("^", cur_column(), "\\s*")))) %>% 
+    #     rename_with(~ gsub("Aufwärts sortieren", "", .x, fixed = TRUE)) %>% 
+    #     clean_names %>% 
+    #     as_tibble()
+    #   
+    #   # Tabelle anzeigen
+    #   check_obj_exist(zugeordnete_module_tibble) 
+    #   
+    # }, error = function(e) {
+    #   message("Fehler beim Abrufen der Tabelle: ", e$message)
+    # })
     
     #////////////////////////////////////////////////////////////
     #////////////////////////////////////////////////////////////
@@ -367,7 +393,7 @@ for (i in seq_along(chunks)) {
   
   #scroll nach ganz unten:
   rmdr$executeScript("window.scrollTo(0, document.body.scrollHeight);")
-  Sys.sleep(5)
+  Sys.sleep(4)
   weiter_button <- waitForElementAndClick(
     driver = rmdr,
     using = 'id',
