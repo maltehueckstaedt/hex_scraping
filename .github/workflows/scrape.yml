@@ -16,10 +16,10 @@ jobs:
       with:
         r-version: '4.3.1' # Gewünschte R-Version
 
-    - name: Install packages
+    - name: Install R packages
       run: |
-        install.packages("rvest")
-    
+        R -e 'install.packages("rvest")'
+
     - name: Run scrape script
       run: Rscript test_scraper_action.R
 
