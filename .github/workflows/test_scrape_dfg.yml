@@ -1,10 +1,7 @@
 name: R
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch: # Trigger für manuellen Start
 
 permissions:
   contents: read
