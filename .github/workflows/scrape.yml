@@ -18,7 +18,7 @@ jobs:
 
     - name: Install R packages
       run: |
-        R -e 'install.packages("rvest")'
+        Rscript -e 'install.packages("rvest", repos="https://cran.rstudio.com/")'
 
     - name: Run scrape script
       run: Rscript test_scraper_action.R
