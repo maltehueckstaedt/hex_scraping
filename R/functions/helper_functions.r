@@ -56,8 +56,20 @@ choose_semester <- function(rmdr, semester_number) {
   # Klicke in das Feld Suchbegriffe und drücke Enter
   Suchbegriffe$clickElement()
   Suchbegriffe$sendKeysToElement(list(key = "enter"))
-}
 
+  rmdr$executeScript("window.scrollTo(0, 0);")
+
+  # finde Seitenanzahl-Feld
+  # Finden des Eingabefeldes
+  input_field <- rmdr$findElement(using = "css selector", "#genSearchRes\\:id3f3bd34c5d6b1c79\\:id3f3bd34c5d6b1c79Navi2NumRowsInput")
+
+  # Zuerst zweimal die Backspace-Taste drücken
+  input_field$sendKeysToElement(list(key = "control", "a", key = "backspace"))
+
+  # Dann die Zahl 300 eingeben und Enter drücken
+  input_field$sendKeysToElement(list("300", key = "enter"))
+
+}
 
 
 wait_for_element_and_click <- function(driver, using, value, action = NULL, timeout = 30, poll_interval = 0.5) {
